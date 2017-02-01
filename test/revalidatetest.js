@@ -13,7 +13,11 @@ const multiValidatorResponse = {headers:Object.assign({},etaggedResponse.headers
 const alwaysVariableResponse = {headers:Object.assign({'vary':'*'},cacheableResponse.headers)};
 
 describe('Can be revalidated?', function() {
-    it('not if method mismatch',function(){
+    it('ok if method changes to HEAD',function(){
+       const cache = new CachePolicy(simpleRequest,etaggedResponse);
+       assert(cache.validationRequest(simpleRequestBut({method:'HEAD'})));
+    });
+    it('not if method mismatch (other than HEAD)',function(){
        const cache = new CachePolicy(simpleRequest,etaggedResponse);
        assert(!cache.validationRequest(simpleRequestBut({method:'POST'})));
     });

@@ -9,6 +9,7 @@ const simpleRequestBut = overrides=>Object.assign({},simpleRequest,overrides);
 const cacheableResponse = {headers:{'cache-control':'max-age=111'}};
 const etaggedResponse = {headers:Object.assign({'etag':'"123456789"'},cacheableResponse.headers)};
 const lastModifiedResponse = {headers:Object.assign({'last-modified':'Tue, 15 Nov 1994 12:45:26 GMT'},cacheableResponse.headers)};
+const multiValidatorResponse = {headers:Object.assign({},etaggedResponse.headers,lastModifiedResponse.headers)};
 const alwaysVariableResponse = {headers:Object.assign({'vary':'*'},cacheableResponse.headers)};
 
 describe('Can be revalidated?', function() {
@@ -41,4 +42,20 @@ describe('Can be revalidated?', function() {
         assert(!cache.validationRequest(simpleRequest));
     })
 
+});
+
+describe('Validation request', function(){
+    it('must contain any etag',function(){
+        const cache = new CachePolicy(simpleRequest,multiValidatorResponse);
+        const expected = multiValidatorResponse.headers.etag;
+        const actual = cache.validationRequest(simpleRequest).headers['if-none-match'];
+        assert.equal(actual,expected);
+    });
+    it('should send the Last-Modified value',function(){
+        const cache = new CachePolicy(simpleRequest,multiValidatorResponse);
+        const expected = multiValidatorResponse.headers['last-modified'];
+        const actual = cache.validationRequest(simpleRequest).headers['if-modified-since'];
+        assert.equal(actual,expected);
+    });
+    
 });

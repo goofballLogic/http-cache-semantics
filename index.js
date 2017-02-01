@@ -120,11 +120,15 @@ module.exports = class CachePolicy {
             this._resHeaders.expires;
     }
 
-    satisfiesWithoutRevalidation(req) {
+    _assertRequestHasHeaders(req) {
         if (!req || !req.headers) {
             throw Error("Request headers missing");
         }
-
+    }
+    
+    satisfiesWithoutRevalidation(req) {
+        this._assertRequestHasHeaders(req);
+        
         // When presented with a request, a cache MUST NOT reuse a stored response, unless:
         // the presented request does not contain the no-cache pragma (Section 5.4), nor the no-cache cache directive,
         // unless the stored response is successfully validated (Section 4.3), and
@@ -150,13 +154,7 @@ module.exports = class CachePolicy {
             }
         }
 
-        // The presented effective request URI and that of the stored response match, and
-        return (!this._url || this._url === req.url) &&
-            (this._host === req.headers.host) &&
-            // the request method associated with the stored response allows it to be used for the presented request, and
-            (!req.method || this._method === req.method) &&
-            // selecting header fields nominated by the stored response (if any) match those presented, and
-            this._varyMatches(req);
+        return this._requestMatches(req);
     }
 
     _allowsStoringAuthenticated() {
@@ -164,6 +162,17 @@ module.exports = class CachePolicy {
         return this._rescc['must-revalidate'] || this._rescc.public || this._rescc['s-maxage'];
     }
 
+    _requestMatches(req) {
+        // The presented effective request URI and that of the stored response match, and
+        return (!this._url || this._url === req.url) &&
+            (this._host === req.headers.host) &&
+            // the request method associated with the stored response allows it to be used for the presented request, and
+            (!req.method || this._method === req.method) &&
+            // selecting header fields nominated by the stored response (if any) match those presented, and
+            this._varyMatches(req);
+        
+    }
+    
     _varyMatches(req) {
         if (!this._resHeaders.vary) {
             return true;
@@ -338,5 +347,16 @@ module.exports = class CachePolicy {
             reqh: this._reqHeaders,
             reqcc: this._reqcc,
         };
+    }
+    
+    validationRequest(req) {
+        this._assertRequestHasHeaders(req);
+        if(!(this._resHeaders.etag || this._resHeaders["last-modified"])) {
+            return null; // no validators available
+        }
+        if(!this._requestMatches(req)) {
+            return null; // not for the same resource
+        }
+        return req;
     }
 };

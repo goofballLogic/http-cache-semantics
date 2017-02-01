@@ -5,7 +5,7 @@
   "main": "index.js",
   "repository": "https://github.com/pornel/http-cache-semantics.git",
   "scripts": {
-    "test": "mocha"
+    "test": "./node_modules/.bin/mocha --reporter spec"
   },
   "author": "Kornel Lesiński <kornel@geekhood.net> (https://kornel.ski/)",
   "license": "BSD-2-Clause",

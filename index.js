@@ -309,6 +309,34 @@ module.exports = class CachePolicy {
         return this.maxAge() <= this.age();
     }
 
+    validators() {
+        const strong = {};
+        const weak = {};
+        if('last-modified' in this._resHeaders){
+            let category = weak;
+            if('date' in this._resHeaders){
+                // strong if: "That cache entry includes a Date value, which gives the time when the origin server sent the original response, and the presented Last-Modified time is at least 60 seconds before the Date value."
+                const lastModified = Date.parse(this._resHeaders['last-modified']);
+                const originDate = Date.parse(this._resHeaders['date']);
+                const sixtySeconds = 60000;
+                if(originDate-lastModified>=sixtySeconds) {category = strong;}
+            }
+            category['last-modified'] = this._resHeaders['last-modified'];
+        }
+        if('etag' in this._resHeaders){
+            const etag = this._resHeaders['etag'];
+            // An entity-tag can be either a weak or strong validator, with strong being the default... mark the entity-tag as weak by prefixing its opaque value with "W/"
+            const category = etag 
+                ? etag.trim().substr(0,2)==="W/" ? weak : strong
+                : weak;
+            category.etag = etag;
+        }
+        const ret = {};
+        if(Object.keys(strong).length) { ret.strong = strong; }
+        if(Object.keys(weak).length) { ret.weak = weak; }
+        return ret;
+    }
+    
     static fromObject(obj) {
         return new this(undefined, undefined, {_fromObject:obj});
     }

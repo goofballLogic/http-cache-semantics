@@ -83,25 +83,36 @@ module.exports = class CachePolicy {
         }
     }
 
-    key() {
+    static key(isSecure,host,url,resHeaders) {
         const schemaVersion = 1;
         
-        const protocol = this._secure ? "https" : "http";
-        const hostParts = /^([^:]*)(?::(.*))?$/.exec(this._host);
+        const protocol = isSecure ? "https" : "http";
+        const hostParts = /^([^:]*)(?::(.*))?$/.exec(host);
         const server = hostParts[1];
-        const port = hostParts[2] || (this._secure ? "443" : "80");
-        const effectiveUri = `${protocol}://${server}:${port}${this._url}`;
+        const port = hostParts[2] || (isSecure ? "443" : "80");
+        const effectiveUri = `${protocol}://${server}:${port}${url}`;
         
-        const fields  = this._varyingHeaders().map(x=>x.toLowerCase()).sort();
-        const fieldValues = field => Object.keys( this._resHeaders )
+        const fields  = CachePolicy._varyingHeaders(resHeaders).map(x=>x.toLowerCase()).sort();
+        const fieldValues = field => Object.keys(resHeaders)
             .filter(key=>key.toLowerCase()===field)
-            .map(key=>this._resHeaders[key])
+            .map(key=>resHeaders[key])
             .join(',');
         const values = fields.map(fieldValues)
         
-        const {strong,weak} = this.validators();
+        const {strong,weak} = CachePolicy.validators(resHeaders);
 
         return [schemaVersion,effectiveUri,[fields,values],strong,weak];
+    }
+    
+    key() {
+        return CachePolicy.key(this._secure,this._host,this._url,this._resHeaders);
+    }
+    
+    selector(validationResponse){
+        const selector = CachePolicy.key(this._secure,this._host,this._url,validationResponse.headers);
+        // remove weak validators if strong exist
+        if(selector[3]){selector[4]=null;}
+        return selector;
     }
     
     now() {
@@ -205,16 +216,16 @@ module.exports = class CachePolicy {
             return false;
         }
 
-        const fields = this._varyingHeaders();
+        const fields = CachePolicy._varyingHeaders(this._resHeaders);
         for(const name of fields) {
             if (req.headers[name] !== this._reqHeaders[name]) return false;
         }
         return true;
     }
 
-    _varyingHeaders() {
-        return this._resHeaders.vary 
-            ? this._resHeaders.vary.trim().toLowerCase().split(/\s*,\s*/)
+    static _varyingHeaders(headers) {
+        return headers.vary 
+            ? headers.vary.trim().toLowerCase().split(/\s*,\s*/)
             : [];
     }
 
@@ -337,22 +348,22 @@ module.exports = class CachePolicy {
         return this.maxAge() <= this.age();
     }
 
-    validators() {
+    static validators(headers) {
         const strong = {};
         const weak = {};
-        if('last-modified' in this._resHeaders){
+        if('last-modified' in headers){
             let category = weak;
-            if('date' in this._resHeaders){
+            if('date' in headers){
                 // strong if: "That cache entry includes a Date value, which gives the time when the origin server sent the original response, and the presented Last-Modified time is at least 60 seconds before the Date value."
-                const lastModified = Date.parse(this._resHeaders['last-modified']);
-                const originDate = Date.parse(this._resHeaders['date']);
+                const lastModified = Date.parse(headers['last-modified']);
+                const originDate = Date.parse(headers['date']);
                 const sixtySeconds = 60000;
                 if(originDate-lastModified>=sixtySeconds) {category = strong;}
             }
-            category['last-modified'] = this._resHeaders['last-modified'];
+            category['last-modified'] = headers['last-modified'];
         }
-        if('etag' in this._resHeaders){
-            const etag = this._resHeaders['etag'];
+        if('etag' in headers){
+            const etag = headers['etag'];
             // An entity-tag can be either a weak or strong validator, with strong being the default... mark the entity-tag as weak by prefixing its opaque value with "W/"
             const category = etag 
                 ? etag.trim().substr(0,2)==="W/" ? weak : strong
@@ -363,6 +374,10 @@ module.exports = class CachePolicy {
         if(Object.keys(strong).length) { ret.strong = strong; }
         if(Object.keys(weak).length) { ret.weak = weak; }
         return ret;
+    }
+    
+    validators() {
+        return CachePolicy.validators(this._resHeaders);    
     }
     
     static fromObject(obj) {
@@ -416,7 +431,7 @@ module.exports = class CachePolicy {
         if(!this._requestMatches(req, true)) {
             return null; // not for the same resource
         }
-        const vreq = Object.assign({},req);this._resHeaders.vary.trim().toLowerCase().split(/\s*,\s*/)
+        const vreq = Object.assign({},req);
         vreq.headers = Object.assign({},req.headers);
         
         /* MUST send that entity-tag in any cache validation request (using If-Match or If-None-Match) if an entity-tag has been provided by the origin server. */

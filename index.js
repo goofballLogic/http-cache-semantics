@@ -61,7 +61,8 @@ module.exports = class CachePolicy {
         this._noAuthorization = !req.headers.authorization;
         this._reqHeaders = res.headers.vary ? req.headers : null; // Don't keep all request headers if they won't be used
         this._reqcc = parseCacheControl(req.headers['cache-control']);
-
+        this._secure = !!req.secure;
+        
         // Assume that if someone uses legacy, non-standard uncecessary options they don't understand caching,
         // so there's no point stricly adhering to the blindly copy&pasted directives.
         if (ignoreCargoCult && "pre-check" in this._rescc && "post-check" in this._rescc) {
@@ -82,6 +83,27 @@ module.exports = class CachePolicy {
         }
     }
 
+    key() {
+        const schemaVersion = 1;
+        
+        const protocol = this._secure ? "https" : "http";
+        const hostParts = /^([^:]*)(?::(.*))?$/.exec(this._host);
+        const server = hostParts[1];
+        const port = hostParts[2] || (this._secure ? "443" : "80");
+        const effectiveUri = `${protocol}://${server}:${port}${this._url}`;
+        
+        const fields  = this._varyingHeaders().map(x=>x.toLowerCase()).sort();
+        const fieldValues = field => Object.keys( this._resHeaders )
+            .filter(key=>key.toLowerCase()===field)
+            .map(key=>this._resHeaders[key])
+            .join(',');
+        const values = fields.map(fieldValues)
+        
+        const {strong,weak} = this.validators();
+
+        return [schemaVersion,effectiveUri,[fields,values],strong,weak];
+    }
+    
     now() {
         return Date.now();
     }
@@ -183,11 +205,17 @@ module.exports = class CachePolicy {
             return false;
         }
 
-        const fields = this._resHeaders.vary.trim().toLowerCase().split(/\s*,\s*/);
+        const fields = this._varyingHeaders();
         for(const name of fields) {
             if (req.headers[name] !== this._reqHeaders[name]) return false;
         }
         return true;
+    }
+
+    _varyingHeaders() {
+        return this._resHeaders.vary 
+            ? this._resHeaders.vary.trim().toLowerCase().split(/\s*,\s*/)
+            : [];
     }
 
     responseHeaders() {
@@ -343,7 +371,7 @@ module.exports = class CachePolicy {
 
     _fromObject(obj) {
         if (this._responseTime) throw Error("Reinitialized");
-        if (!obj || obj.v !== 1) throw Error("Invalid serialization");
+        if (!obj || obj.v !== 1.1) throw Error("Invalid serialization");
 
         this._responseTime = obj.t;
         this._isShared = obj.sh;
@@ -357,11 +385,12 @@ module.exports = class CachePolicy {
         this._noAuthorization = obj.a;
         this._reqHeaders = obj.reqh;
         this._reqcc = obj.reqcc;
+        this.secure = obj.s;
     }
 
     toObject() {
         return {
-            v:1,
+            v:1.1,
             t: this._responseTime,
             sh: this._isShared,
             ch: this._cacheHeuristic,
@@ -374,6 +403,7 @@ module.exports = class CachePolicy {
             a: this._noAuthorization,
             reqh: this._reqHeaders,
             reqcc: this._reqcc,
+            s: this.secure
         };
     }
     
@@ -386,7 +416,7 @@ module.exports = class CachePolicy {
         if(!this._requestMatches(req, true)) {
             return null; // not for the same resource
         }
-        const vreq = Object.assign({},req);
+        const vreq = Object.assign({},req);this._resHeaders.vary.trim().toLowerCase().split(/\s*,\s*/)
         vreq.headers = Object.assign({},req.headers);
         
         /* MUST send that entity-tag in any cache validation request (using If-Match or If-None-Match) if an entity-tag has been provided by the origin server. */

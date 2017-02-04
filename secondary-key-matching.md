@@ -30,3 +30,6 @@ function matchSecondaryKey(cachePolicy, req){
     return true;
 }
 ```
+
+[7230.3.2.2]: http://httpwg.org/specs/rfc7230.html#rfc.section.3.2.2
+[7230.3.2.4]: http://httpwg.org/specs/rfc7230.html#rfc.section.3.2.4

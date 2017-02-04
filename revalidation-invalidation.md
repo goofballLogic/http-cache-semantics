@@ -59,6 +59,7 @@ const cacheKey = cache.key();
 
 ### Looking up a request in the cache
 In order to see if your request is stored in the cache, the following sequence is recommended:
+
 1. Look up your "effective request uri" ([RFC7230 5.5][7230.5.5]) against the _primary key_ of your cache policies.
 2. Search the results for a matching [_secondary key_](./response-identification.md).
 3. Verify freshness of the located cached response

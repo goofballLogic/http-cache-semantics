@@ -84,6 +84,8 @@ if(!matchedCache.stale()){
 . . .
 ```
 
+Notes on matching the secondary key, along with an example implementation can be found [here](./secondary-key-matching.md).
+
 ### Validating a stale cache response
 If your cached response is stale, normal cache behaviour is to validate the response with the originating server.
 
@@ -111,7 +113,6 @@ if(!validationRequest){
 }
 ```
 
-Notes on matching the secondary key, along with an example implementation can be found [here](./secondary-key-matching.md).
 
 ### Handling a Validation Response
 

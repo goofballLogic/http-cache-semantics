@@ -101,8 +101,14 @@ if(!validationRequest){
 }
 ```
 
+Notes on matching the secondary key, along with an example implementation can be found [here](./secondary-key-matching.md).
+
+
 
 
 [7234.4.3]: http://httpwg.org/specs/rfc7234.html#validation.model
 [7234.4.4]: http://httpwg.org/specs/rfc7234.html#invalidation
+[7234.4.1]: http://httpwg.org/specs/rfc7234.html#rfc.section.4.1
 [7230.5.5]: http://httpwg.org/specs/rfc7230.html#effective.request.uri
+[7230.3.2.2]: http://httpwg.org/specs/rfc7230.html#rfc.section.3.2.2
+[7230.3.2.4]: http://httpwg.org/specs/rfc7230.html#rfc.section.3.2.4

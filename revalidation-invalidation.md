@@ -64,13 +64,6 @@ In order to see if your request is stored in the cache, the following sequence i
 2. Search the results for a matching [_secondary key_](./response-identification.md).
 3. Verify freshness of the located cached response
 
-### Validating a stale cache response
-If your cached response is stale, normal cache behaviour is to validate the response with the originating server.
-
-However, per the HTTP specification, only certain responses can be validated ([RFC 7234, section 4.3][7234.4.3]). For example, your cached response must contain at least one validator (an Etag or Last-Modified header).
-
-To see whether a CachePolicy can be validated, you can call the `validationRequest()` method. If the cached response can be validated, the method will return the request you need to send. Otherwise, it will return `null`.
-
 ```javascript
 // find any caches for this URI
 const effectiveUri = fullUri(req); // 'http://localhost:80/'
@@ -83,6 +76,23 @@ if(!matchedCache){
     return null;
 }
 
+// fresh?
+if(!matchedCache.stale()){
+	// fresh - we're done :)
+    return matchedCache
+}
+. . .
+```
+
+### Validating a stale cache response
+If your cached response is stale, normal cache behaviour is to validate the response with the originating server.
+
+However, per the HTTP specification, only certain responses can be validated ([RFC 7234, section 4.3][7234.4.3]). For example, your cached response must contain at least one validator (an Etag or Last-Modified header).
+
+To see whether a CachePolicy can be validated, you can call the `validationRequest()` method. If the cached response can be validated, the method will return the request you need to send. Otherwise, it will return `null`.
+
+```javascript
+. . .
 // fresh?
 if(!matchedCache.stale()){
 	// fresh - we're done :)

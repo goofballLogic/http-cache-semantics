@@ -94,7 +94,7 @@ const validationRequest = matchedCache.validationRequest();
 if(!validationRequest){
 	// can't be validated and should be thrown away :(
     await invalidate(matchedCache);
-    return null;
+    return next(req);
 } else {
 	// can be validated, all is not lost :)
     return await validate(matchedCache);

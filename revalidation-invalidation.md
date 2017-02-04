@@ -94,17 +94,44 @@ const validationRequest = matchedCache.validationRequest();
 if(!validationRequest){
 	// can't be validated and should be thrown away :(
     await invalidate(matchedCache);
-    return next(req);
+    return fetch(req);
 } else {
 	// can be validated, all is not lost :)
-    return await validate(matchedCache);
+    return await validate(validationRequest,matchedCache);
 }
 ```
 
 Notes on matching the secondary key, along with an example implementation can be found [here](./secondary-key-matching.md).
 
+### Handling a Validation Response
+
+Once you receive a validation response, any successful response other than a 304 means that validation has failed, and your cached response is now invalid and should be thrown away.
+
+For example:
+```javascript
+function async validate(validationRequest,matchedCache){
+   const validationResponse = await fetch(validationRequest);
+   if(validationResponse.status<400){
+       // the matched cache is now invalid and should be thrown away
+       await invalidate(matchedCache);
+       return validationResponse;
+   } else if(validationResponse.status===403){
+       // can be freshened!
+       return await freshen(matchedCache,validationResponse);
+   } else {
+       // an error
+       debug('Cache response validation failed',validationResponse);
+       throw new Error(`Cache response validation failed: ${validationResponse.status}`);
+   }
+}
+```       
 
 
+## Freshening cached responses
+TBD
+
+## Invalidation
+TBD
 
 [7234.4.3]: http://httpwg.org/specs/rfc7234.html#validation.model
 [7234.4.4]: http://httpwg.org/specs/rfc7234.html#invalidation
